@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StudyTrack AI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #101827;
+      color: white;
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 16px;
+    }
+    #chat {
+      height: 55vh;
+      overflow-y: auto;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .msg {
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 10px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .user { background: #254d79; }
+    .bot { background: #334155; }
+    input, button {
+      box-sizing: border-box;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 0;
+    }
+    #question { width: 100%; }
+    button { cursor: pointer; margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h1>StudyTrack AI 🤖</h1>
+  <p id="welcome">Your personal AI assistant</p>
+
+  <div id="chat" aria-live="polite"></div>
+
+  <form id="form">
+    <input id="question"
+      placeholder="Ask me anything..."
+      autocomplete="off" required>
+    <button type="submit">Send</button>
+    <button type="button" id="mic">🎙️ Speak</button>
+    <button type="button" id="voice">🔊 Voice ON</button>
+  </form>
+
+<script>
+const chat = document.getElementById("chat");
+const form = document.getElementById("form");
+const question = document.getElementById("question");
+let voiceOn = true;
+let history = [];
+
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// Use your real login system to provide the user's name.
+const userName = sessionStorage.getItem("studytrack_name");
+const name = userName || "there";
+
+document.getElementById("welcome").textContent =
+  `Welcome, ${name}! I'm StudyTrack AI. Ask me anything.`;
+
+addMessage("bot",
+  `Hello, ${name}! 👋 I'm StudyTrack AI, your personal assistant. ` +
+  "I can help with studies, science, maths, coding and general knowledge. " +
+  "What would you like to explore today?"
+);
+
+function speak(text) {
+  if (!voiceOn || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1.05;
+  speechSynthesis.speak(utterance);
+}
+
+document.getElementById("voice").onclick = () => {
+  voiceOn = !voiceOn;
+  document.getElementById("voice").textContent =
+    voiceOn ? "🔊 Voice ON" : "🔇 Voice OFF";
+  if (!voiceOn && "speechSynthesis" in window)
+    speechSynthesis.cancel();
+};
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const text = question.value.trim();
+  if (!text) return;
+
+  addMessage("user", text);
+  question.value = "";
+  const loading = addMessage("bot", "Thinking...");
+  const send = form.querySelector('[type="submit"]');
+  send.disabled = true;
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        history: history.slice(-10)
+      })
+    });
+
+    if (!response.ok)
+      throw new Error("AI service returned " + response.status);
+
+    const data = await response.json();
+    if (typeof data.reply !== "string")
+      throw new Error("Invalid AI response");
+
+    loading.textContent = data.reply;
+    history.push(
+      { role: "user", content: text },
+      { role: "assistant", content: data.reply }
+    );
+    history = history.slice(-20);
+    speak(data.reply);
+  } catch (error) {
+    loading.textContent =
+      "I couldn't connect to the AI. Check your backend setup and try again.";
+    console.error(error);
+  } finally {
+    send.disabled = false;
+    question.focus();
+  }
+});
+
+document.getElementById("mic").onclick = () => {
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    alert("Voice input is not supported in this browser.");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-IN";
+  recognition.onresult = event => {
+    question.value = event.results[0][0].transcript;
+    form.requestSubmit();
+  };
+  recognition.onerror = () => {
+    alert("Couldn't hear you clearly. Please try again.");
+  };
+  recognition.start();
+};
+</script>
+</body>
+</html>
