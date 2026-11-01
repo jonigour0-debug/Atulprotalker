@@ -1,69 +1,74 @@
-
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AtulProTalker AI</title>
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      background: #101827;
-      color: white;
-      max-width: 700px;
-      margin: 30px auto;
-      padding: 16px;
+      margin: 0; font-family: Arial, sans-serif;
+      background: #0b1020; color: white;
     }
+    .app {
+      max-width: 750px; height: 100dvh; margin: auto;
+      display: flex; flex-direction: column; padding: 16px;
+    }
+    header { padding: 14px 0; border-bottom: 1px solid #303952; }
+    header h2 { margin: 0 0 7px; color: #71b7ff; }
     #chat {
-      height: 55vh;
-      overflow-y: auto;
-      background: #1e293b;
-      border-radius: 12px;
-      padding: 14px;
+      flex: 1; overflow-y: auto; padding: 12px 0;
     }
     .msg {
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      padding: 12px 14px; border-radius: 14px;
+      margin: 10px 0; white-space: pre-wrap;
+      overflow-wrap: anywhere; line-height: 1.5;
     }
-    .user { background: #254d79; }
-    .bot { background: #334155; }
-    input, button {
-      box-sizing: border-box;
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 8px;
-      border: 0;
+    .bot { background: #1b2740; }
+    .user { background: #174f88; margin-left: 12%; }
+    form { display: flex; gap: 8px; padding-top: 10px; }
+    input {
+      flex: 1; min-width: 0; padding: 14px;
+      border-radius: 12px; border: 1px solid #46536b;
+      background: #172033; color: white; font-size: 16px;
     }
-    #question { width: 100%; }
-    button { cursor: pointer; margin-right: 5px; }
+    button {
+      border: 0; border-radius: 12px; padding: 12px 16px;
+      background: #2785f5; color: white; font-weight: bold;
+    }
+    button:disabled { opacity: .5; }
+    small { color: #a9b8d0; }
   </style>
 </head>
 <body>
-  <h1>Atulprotalker /h1> 🤖</h1>
-  <p id="welcome">I am atulprotalker hey</p>
+<div class="app">
+  <header>
+    <h2>⚡ AtulProTalker AI</h2>
+    <small>Your smart AI assistant • Hindi + English</small>
+  </header>
 
-  <div id="chat" aria-live="polite"></div>
+  <main id="chat" aria-live="polite">
+    <div class="msg bot">
+      Hello! Welcome to AtulProTalker AI.
+      Ask me anything — Maths, Science, coding or general knowledge!
+    </div>
+  </main>
 
   <form id="form">
-    <input id="question"
-      placeholder="Ask me anything..."
-      autocomplete="off" required>
-    <button type="submit">Send</button>
-    <button type="button" id="mic">🎙️ Speak</button>
-    <button type="button" id="voice">🔊 Voice ON</button>
+    <input id="question" placeholder="Ask anything..." required
+           maxlength="4000" autocomplete="off">
+    <button id="send" type="submit">Send</button>
   </form>
+</div>
 
 <script>
 const chat = document.getElementById("chat");
 const form = document.getElementById("form");
-const question = document.getElementById("question");
-let voiceOn = true;
-let history = [];
+const input = document.getElementById("question");
+const send = document.getElementById("send");
 
-function addMessage(role, text) {
+function addMessage(text, role) {
   const div = document.createElement("div");
   div.className = "msg " + role;
   div.textContent = text;
@@ -72,351 +77,34 @@ function addMessage(role, text) {
   return div;
 }
 
-// Use your real login system to provide the user's name.
-const userName = sessionStorage.getItem("studytrack_name");
-const name = userName || "there";
-
-document.getElementById("welcome").textContent =
-  `Welcome, ${name}! I'm StudyTrack AI. Ask me anything.`;
-
-addMessage("bot",
-  `Hello, ${name}! 👋 i am atulprotalker, your personal assistant. ` +
-  "I can help with studies, science, maths, coding and general knowledge. " +
-  "What would you like to explore today?"
-);
-
-function speak(text) {
-  if (!voiceOn || !("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.05;
-  speechSynthesis.speak(utterance);
-}
-
-document.getElementById("voice").onclick = () => {
-  voiceOn = !voiceOn;
-  document.getElementById("voice").textContent =
-    voiceOn ? "🔊 Voice ON" : "🔇 Voice OFF";
-  if (!voiceOn && "speechSynthesis" in window)
-    speechSynthesis.cancel();
-};
-
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const text = question.value.trim();
-  if (!text) return;
+  const question = input.value.trim();
+  if (!question || send.disabled) return;
 
-  addMessage("user", text);
-  question.value = "";
-  const loading = addMessage("bot", "Thinking...");
-  const send = form.querySelector('[type="submit"]');
+  addMessage(question, "user");
+  input.value = "";
   send.disabled = true;
+  const waiting = addMessage("Thinking...", "bot");
 
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: text,
-        history: history.slice(-10)
-      })
+      body: JSON.stringify({ message: question })
     });
-
-    if (!response.ok)
-      throw new Error("AI service returned " + response.status);
 
     const data = await response.json();
-    if (typeof data.reply !== "string")
-      throw new Error("Invalid AI response");
-
-    loading.textContent = data.reply;
-    history.push(
-      { role: "user", content: text },
-      { role: "assistant", content: data.reply }
-    );
-    history = history.slice(-20);
-    speak(data.reply);
+    if (!response.ok) throw new Error(data.error || "Request failed");
+    waiting.textContent = data.reply || "No answer received.";
   } catch (error) {
-    loading.textContent =
-      "I couldn't connect to the AI. Check your backend setup and try again.";
-    console.error(error);
+    waiting.textContent =
+      "AI connection failed. Check your backend setup and try again.";
   } finally {
     send.disabled = false;
-    question.focus();
+    input.focus();
   }
 });
-
-document.getElementById("mic").onclick = () => {
-  const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    alert("Voice input is not supported in this browser.");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-IN";
-  recognition.onresult = event => {
-    question.value = event.results[0][0].transcript;
-    form.requestSubmit();
-  };
-  recognition.onerror = () => {
-    alert("Couldn't hear you clearly. Please try again.");
-  };
-  recognition.start();
-};
-</script>
-</body>
-</html>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StudyTrack AI</title>
-<style>
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  color: #eef6ff;
-  background: #08111f;
-}
-
-.app {
-  max-width: 700px;
-  min-height: 100vh;
-  margin: auto;
-  padding: 20px;
-  background: linear-gradient(160deg,#101e35,#08111f);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 15px 0;
-}
-
-.avatar {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #28d9ff;
-  box-shadow: 0 0 20px #1684bc66;
-}
-
-.status { color: #55e8b0; font-size: 13px; }
-
-h1 { font-size: 22px; margin-bottom: 6px; }
-
-.welcome {
-  margin: 18px 0;
-  padding: 20px;
-  border: 1px solid #254967;
-  border-radius: 18px;
-  background: #14243a;
-}
-
-#chat {
-  height: 43vh;
-  min-height: 250px;
-  overflow-y: auto;
-  padding: 12px;
-  border-radius: 15px;
-  background: #0c192a;
-}
-
-.message {
-  padding: 12px 14px;
-  border-radius: 14px;
-  margin: 10px 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
-}
-
-.bot { background: #192e47; }
-.user { background: #075985; margin-left: 35px; }
-
-.controls { margin-top: 14px; }
-
-input {
-  width: 100%;
-  padding: 15px;
-  border-radius: 12px;
-  border: 1px solid #36516c;
-  background: #14243a;
-  color: white;
-  font-size: 16px;
-}
-
-button {
-  padding: 12px 16px;
-  margin: 8px 5px 0 0;
-  border: 0;
-  border-radius: 10px;
-  color: white;
-  background: #087fa8;
-  cursor: pointer;
-}
-
-button:disabled { opacity: .5; }
-
-.footer {
-  color: #9eb2ca;
-  text-align: center;
-  font-size: 12px;
-  margin-top: 18px;
-}
-</style>
-</head>
-<body>
-<main class="app">
-
-  <header class="header">
-    <img class="avatar"
-      src="images/my-photo.jpg"
-      alt="My profile picture"
-      onerror="this.style.display='none'">
-    <div>
-      <h1>StudyTrack AI</h1>
-      <div class="status">● AI Assistant Ready</div>
-      <small>Your personal learning companion</small>
-    </div>
-  </header>
-
-  <section class="welcome">
-    <h2 id="greeting">Hello! 👋</h2>
-    <p>i am atulprotalker. Ask me questions,
-    explore ideas, or get help with your studies.</p>
-  </section>
-
-  <section id="chat" aria-live="polite">
-    <div class="message bot">
-      Welcome! i am atulprotalker. What would you
-      like to learn or discover today?
-    </div>
-  </section>
-
-  <form class="controls" id="form">
-    <input id="question"
-      placeholder="Ask anything..."
-      autocomplete="off" required>
-    <button type="submit" id="send">➤ Send</button>
-    <button type="button" id="mic">🎙 Speak</button>
-    <button type="button" id="voice">🔊 Voice ON</button>
-  </form>
-
-  <div class="footer">
-    atulprotalker · Learn something new every day
-  </div>
-</main>
-
-<script>
-const chat = document.getElementById("chat");
-const form = document.getElementById("form");
-const input = document.getElementById("question");
-let voiceEnabled = true;
-let history = [];
-
-function addMessage(type, text) {
-  const el = document.createElement("div");
-  el.className = "message " + type;
-  el.textContent = text;
-  chat.appendChild(el);
-  chat.scrollTop = chat.scrollHeight;
-  return el;
-}
-
-// Replace this demo name with your authenticated user's name.
-const userName = sessionStorage.getItem("studytrack_name");
-if (userName) {
-  document.getElementById("greeting").textContent =
-    "Welcome back, " + userName + "! 👋";
-}
-
-function speak(text) {
-  if (!voiceEnabled || !("speechSynthesis" in window))
-    return;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(
-    new SpeechSynthesisUtterance(text)
-  );
-}
-
-document.getElementById("voice").onclick = () => {
-  voiceEnabled = !voiceEnabled;
-  document.getElementById("voice").textContent =
-    voiceEnabled ? "🔊 Voice ON" : "🔇 Voice OFF";
-  if (!voiceEnabled && "speechSynthesis" in window)
-    speechSynthesis.cancel();
-};
-
-form.onsubmit = async (e) => {
-  e.preventDefault();
-  const message = input.value.trim();
-  if (!message) return;
-
-  addMessage("user", message);
-  input.value = "";
-
-  const loading = addMessage("bot", "Thinking...");
-  document.getElementById("send").disabled = true;
-
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        message,
-        history: history.slice(-10)
-      })
-    });
-
-    if (!res.ok) throw new Error("AI backend unavailable");
-
-    const data = await res.json();
-    if (typeof data.reply !== "string")
-      throw new Error("Invalid reply");
-
-    loading.textContent = data.reply;
-    history.push(
-      {role: "user", content: message},
-      {role: "assistant", content: data.reply}
-    );
-    history = history.slice(-20);
-    speak(data.reply);
-  } catch (err) {
-    loading.textContent =
-      "AI connection failed. Please check your backend.";
-  } finally {
-    document.getElementById("send").disabled = false;
-  }
-};
-
-document.getElementById("mic").onclick = () => {
-  const SR = window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-  if (!SR) {
-    alert("Voice input is not supported in this browser.");
-    return;
-  }
-
-  const recognition = new SR();
-  recognition.lang = "en-IN";
-  recognition.onresult = (e) => {
-    input.value = e.results[0][0].transcript;
-    form.requestSubmit();
-  };
-  recognition.start();
-};
 </script>
 </body>
 </html>
