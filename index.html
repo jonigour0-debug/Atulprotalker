@@ -1,109 +1,139 @@
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AtulProTalker AI</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; font-family: Arial, sans-serif;
-      background: #0b1020; color: white;
-    }
-    .app {
-      max-width: 750px; height: 100dvh; margin: auto;
-      display: flex; flex-direction: column; padding: 16px;
-    }
-    header { padding: 14px 0; border-bottom: 1px solid #303952; }
-    header h2 { margin: 0 0 7px; color: #71b7ff; }
-    #chat {
-      flex: 1; overflow-y: auto; padding: 12px 0;
-    }
-    .msg {
-      padding: 12px 14px; border-radius: 14px;
-      margin: 10px 0; white-space: pre-wrap;
-      overflow-wrap: anywhere; line-height: 1.5;
-    }
-    .bot { background: #1b2740; }
-    .user { background: #174f88; margin-left: 12%; }
-    form { display: flex; gap: 8px; padding-top: 10px; }
-    input {
-      flex: 1; min-width: 0; padding: 14px;
-      border-radius: 12px; border: 1px solid #46536b;
-      background: #172033; color: white; font-size: 16px;
-    }
-    button {
-      border: 0; border-radius: 12px; padding: 12px 16px;
-      background: #2785f5; color: white; font-weight: bold;
-    }
-    button:disabled { opacity: .5; }
-    small { color: #a9b8d0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AtulProTalker AI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1020;color:#fff;font:16px Arial}
+.app{max-width:760px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:15px}
+header{padding:12px;border-bottom:1px solid #35415c}
+h2{color:#70b7ff;margin:0 0 8px}
+#chat{flex:1;overflow-y:auto;padding:12px 0}
+.msg{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 14px;margin:9px 0;border-radius:14px;line-height:1.5}
+.bot{background:#1c2941}
+.user{background:#15558d;margin-left:12%}
+.msg img{max-width:100%;border-radius:10px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0}
+button,.upload{border:0;border-radius:10px;padding:12px;background:#267cf0;color:white;font-weight:bold;cursor:pointer}
+input[type=text]{flex:1;min-width:0;padding:14px;background:#18243a;border:1px solid #52617b;border-radius:12px;color:white;font-size:16px}
+#preview{max-width:120px;max-height:100px;display:none;border-radius:8px}
+label{font-size:13px;color:#d5deed}
+#status{font-size:12px;color:#9db5d7}
+</style>
 </head>
 <body>
 <div class="app">
-  <header>
-    <h2>⚡ AtulProTalker AI</h2>
-    <small>Your smart AI assistant • Hindi + English</small>
-  </header>
-
-  <main id="chat" aria-live="polite">
-    <div class="msg bot">
-      Hello! Welcome to AtulProTalker AI.
-      Ask me anything — Maths, Science, coding or general knowledge!
-    </div>
-  </main>
-
-  <form id="form">
-    <input id="question" placeholder="Ask anything..." required
-           maxlength="4000" autocomplete="off">
-    <button id="send" type="submit">Send</button>
-  </form>
+<header>
+<h2>⚡ AtulProTalker AI</h2>
+<div id="status">Smart AI • Hindi • English • Voice • Images • Web</div>
+</header>
+<main id="chat" aria-live="polite">
+<div class="msg bot">Hello! Welcome to AtulProTalker AI. 👋
+Ask me anything, speak your question, or upload an image.</div>
+</main>
+<div class="controls">
+<label><input id="web" type="checkbox"> Search web</label>
+<label class="upload">📷 Add image
+<input id="file" type="file" accept="image/*" hidden>
+</label>
+<img id="preview" alt="Selected image preview">
+<button id="mic" type="button">🎙️ Speak</button>
+<button id="speak" type="button">🔊 Read latest</button>
 </div>
-
+<form id="form" class="controls">
+<input id="q" type="text" maxlength="4000"
+placeholder="Type your question..." required>
+<button id="send">Send</button>
+</form>
+</div>
 <script>
-const chat = document.getElementById("chat");
-const form = document.getElementById("form");
-const input = document.getElementById("question");
-const send = document.getElementById("send");
+const API_URL = "https://YOUR-WORKER-NAME.workers.dev/api/chat";
+const chat=document.getElementById("chat");
+const q=document.getElementById("q");
+const file=document.getElementById("file");
+const preview=document.getElementById("preview");
+const status=document.getElementById("status");
+const send=document.getElementById("send");
+let imageData=null,lastAnswer="";
 
-function addMessage(text, role) {
-  const div = document.createElement("div");
-  div.className = "msg " + role;
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
+function bubble(text,who){
+ const d=document.createElement("div");
+ d.className="msg "+who;
+ d.textContent=text; chat.appendChild(d);
+ chat.scrollTop=chat.scrollHeight; return d;
 }
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const question = input.value.trim();
-  if (!question || send.disabled) return;
-
-  addMessage(question, "user");
-  input.value = "";
-  send.disabled = true;
-  const waiting = addMessage("Thinking...", "bot");
-
-  try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: question })
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Request failed");
-    waiting.textContent = data.reply || "No answer received.";
-  } catch (error) {
-    waiting.textContent =
-      "AI connection failed. Check your backend setup and try again.";
-  } finally {
-    send.disabled = false;
-    input.focus();
-  }
+file.addEventListener("change",()=>{
+ const f=file.files[0];
+ if(!f)return;
+ if(!f.type.startsWith("image/")){alert("Choose an image.");return;}
+ if(f.size>4*1024*1024){
+   alert("Choose an image under 4 MB.");file.value="";return;
+ }
+ const r=new FileReader();
+ r.onload=()=>{
+   imageData=r.result;preview.src=imageData;
+   preview.style.display="block";
+ };
+ r.readAsDataURL(f);
+});
+document.getElementById("mic").onclick=()=>{
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert("Speech recognition is not supported in this browser.");return;}
+ const rec=new SR();
+ rec.lang="hi-IN";rec.interimResults=false;
+ rec.onresult=e=>{q.value=e.results[0][0].transcript;q.focus();};
+ rec.onerror=()=>status.textContent="Microphone error. Check browser permission.";
+ rec.start();
+};
+document.getElementById("speak").onclick=()=>{
+ if(!lastAnswer){alert("Ask a question first.");return;}
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(lastAnswer);
+ u.lang=/[\u0900-\u097F]/.test(lastAnswer)?"hi-IN":"en-IN";
+ speechSynthesis.speak(u);
+};
+document.getElementById("form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const message=q.value.trim();
+ if((!message&&!imageData)||send.disabled)return;
+ const user=bubble(message||"Please explain this image.","user");
+ if(imageData){
+   const im=document.createElement("img");
+   im.src=imageData;im.alt="Uploaded question";
+   user.appendChild(document.createElement("br"));user.appendChild(im);
+ }
+ q.value="";send.disabled=true;status.textContent="AI is thinking...";
+ const wait=bubble("Thinking...","bot");
+ try{
+   if(API_URL.includes("YOUR-WORKER-NAME"))throw Error("Set your Worker URL in index.html first.");
+   const res=await fetch(API_URL,{
+     method:"POST",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({message,image:imageData,webSearch:document.getElementById("web").checked})
+   });
+   const data=await res.json();
+   if(!res.ok)throw Error(data.error||"Backend request failed");
+   wait.textContent=data.reply||"No answer received.";
+   lastAnswer=data.reply||"";
+   if(data.sources?.length){
+     const title=document.createElement("p");title.textContent="\nSources:";
+     wait.appendChild(title);
+     data.sources.forEach(s=>{
+       if(!s.url)return;
+       const a=document.createElement("a");
+       a.href=s.url;a.target="_blank";a.rel="noopener noreferrer";
+       a.textContent=s.title||s.url;a.style.color="#8dc5ff";
+       wait.appendChild(a);wait.appendChild(document.createElement("br"));
+     });
+   }
+   status.textContent="Ready";
+   imageData=null;file.value="";preview.src="";preview.style.display="none";
+ }catch(err){
+   wait.textContent="Error: "+err.message;
+   status.textContent="Connection needs checking";
+ }finally{send.disabled=false;q.focus();}
 });
 </script>
 </body>
