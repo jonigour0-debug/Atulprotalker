@@ -1,140 +1,297 @@
-
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AtulProTalker AI</title>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0b1020;color:#fff;font:16px Arial}
-.app{max-width:760px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:15px}
-header{padding:12px;border-bottom:1px solid #35415c}
-h2{color:#70b7ff;margin:0 0 8px}
-#chat{flex:1;overflow-y:auto;padding:12px 0}
-.msg{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 14px;margin:9px 0;border-radius:14px;line-height:1.5}
-.bot{background:#1c2941}
-.user{background:#15558d;margin-left:12%}
-.msg img{max-width:100%;border-radius:10px}
-.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0}
-button,.upload{border:0;border-radius:10px;padding:12px;background:#267cf0;color:white;font-weight:bold;cursor:pointer}
-input[type=text]{flex:1;min-width:0;padding:14px;background:#18243a;border:1px solid #52617b;border-radius:12px;color:white;font-size:16px}
-#preview{max-width:120px;max-height:100px;display:none;border-radius:8px}
-label{font-size:13px;color:#d5deed}
-#status{font-size:12px;color:#9db5d7}
+body{
+ margin:0;background:#090d1b;color:white;
+ font-family:Arial,sans-serif;
+}
+header{
+ padding:18px;display:flex;
+ justify-content:space-between;
+ align-items:center;
+ background:#11182b;
+}
+.logo{font-size:21px;font-weight:bold;color:#65d9ff}
+button{
+ border:0;border-radius:10px;padding:12px;
+ background:#397cff;color:white;
+ cursor:pointer;font-weight:bold;
+}
+.layout{display:flex;min-height:90vh}
+aside{
+ width:220px;background:#10182a;
+ padding:15px;
+}
+aside button{width:100%;margin:7px 0}
+main{flex:1;padding:20px;min-width:0}
+.panel{
+ background:#151f35;padding:20px;
+ border-radius:16px;margin-bottom:15px;
+}
+.ai{
+ width:125px;height:125px;border-radius:50%;
+ margin:15px auto;
+ background:radial-gradient(circle,#6be9ff,#3549dc,#11182b);
+ box-shadow:0 0 40px #397cff;
+ animation:glow 2s infinite alternate;
+}
+@keyframes glow{
+ to{box-shadow:0 0 65px #8c4fff}
+}
+#chat{
+ height:45vh;overflow-y:auto;
+ background:#0d1425;border-radius:12px;
+ padding:12px;margin-bottom:12px;
+}
+.msg{
+ padding:12px;margin:8px 0;
+ border-radius:12px;background:#202c46;
+ overflow-wrap:anywhere;
+}
+.user{background:#294d85;text-align:right}
+input{
+ width:100%;padding:14px;border-radius:10px;
+ border:1px solid #354b70;background:#10182a;
+ color:white;margin:7px 0;
+}
+.row{display:flex;gap:8px}
+.row input{flex:1;min-width:0}
+.hidden{display:none}
+h2{color:#6be9ff}
+@media(max-width:600px){
+ aside{width:115px;padding:8px}
+ aside button{font-size:11px;padding:10px 3px}
+ main{padding:10px}
+}
 </style>
 </head>
-<body>
-<div class="app">
-<header>
-<h2>⚡ AtulProTalker AI</h2>
-<div id="status">Smart AI • Hindi • English • Voice • Images • Web</div>
-</header>
-<main id="chat" aria-live="polite">
-<div class="msg bot">Hello! Welcome to AtulProTalker AI. 👋
-Ask me anything, speak your question, or upload an image.</div>
-</main>
-<div class="controls">
-<label><input id="web" type="checkbox"> Search web</label>
-<label class="upload">📷 Add image
-<input id="file" type="file" accept="image/*" hidden>
-</label>
-<img id="preview" alt="Selected image preview">
-<button id="mic" type="button">🎙️ Speak</button>
-<button id="speak" type="button">🔊 Read latest</button>
-</div>
-<form id="form" class="controls">
-<input id="q" type="text" maxlength="4000"
-placeholder="Type your question..." required>
-<button id="send">Send</button>
-</form>
-</div>
-<script>
-const API_URL = "https://YOUR-WORKER-NAME.workers.dev/api/chat";
-const chat=document.getElementById("chat");
-const q=document.getElementById("q");
-const file=document.getElementById("file");
-const preview=document.getElementById("preview");
-const status=document.getElementById("status");
-const send=document.getElementById("send");
-let imageData=null,lastAnswer="";
 
-function bubble(text,who){
- const d=document.createElement("div");
- d.className="msg "+who;
- d.textContent=text; chat.appendChild(d);
- chat.scrollTop=chat.scrollHeight; return d;
+<body>
+
+<header>
+ <div class="logo">✦ AtulProTalker AI</div>
+ <button onclick="logout()">Logout</button>
+</header>
+
+<section id="login" class="panel"
+ style="max-width:420px;margin:50px auto;text-align:center">
+ <div class="ai"></div>
+ <h2>Welcome to AtulProTalker</h2>
+ <p>Your personal AI assistant</p>
+ <input id="username" placeholder="Enter your username">
+ <button onclick="guestLogin()">Continue as Guest</button>
+ <p>Guest mode saves history on this device.</p>
+</section>
+
+<div id="app" class="layout hidden">
+
+<aside>
+ <h3>Menu</h3>
+ <button onclick="newChat()">+ New Chat</button>
+ <button onclick="showHistory()">History</button>
+ <button onclick="showSettings()">Settings</button>
+ <button onclick="showHome()">AI Assistant</button>
+ <hr>
+ <div id="history"></div>
+</aside>
+
+<main>
+ <section id="home">
+  <div class="panel" style="text-align:center">
+   <div class="ai"></div>
+   <h2>How can I help you?</h2>
+   <p>Your intelligent AI companion</p>
+  </div>
+
+  <div id="chat"></div>
+
+  <div class="row">
+   <input id="message" placeholder="Ask anything..."
+    onkeydown="if(event.key==='Enter')sendMessage()">
+   <button onclick="sendMessage()">Send</button>
+  </div>
+ </section>
+
+ <section id="settings" class="panel hidden">
+  <h2>Settings</h2>
+  <p>Account: <span id="account"></span></p>
+  <button onclick="toggleTheme()">Toggle Theme</button>
+  <button onclick="clearHistory()">Clear History</button>
+  <button onclick="logout()">Logout</button>
+ </section>
+
+ <section id="historyPage" class="panel hidden">
+  <h2>Chat History</h2>
+  <div id="allHistory"></div>
+ </section>
+</main>
+</div>
+
+<script>
+const API_URL = "YOUR_CLOUDFLARE_WORKER_URL";
+
+let user = localStorage.getItem("atul_user");
+let chats = JSON.parse(localStorage.getItem("atul_chats") || "[]");
+let currentChat = [];
+
+function save(){
+ localStorage.setItem("atul_chats",JSON.stringify(chats));
 }
-file.addEventListener("change",()=>{
- const f=file.files[0];
- if(!f)return;
- if(!f.type.startsWith("image/")){alert("Choose an image.");return;}
- if(f.size>4*1024*1024){
-   alert("Choose an image under 4 MB.");file.value="";return;
- }
- const r=new FileReader();
- r.onload=()=>{
-   imageData=r.result;preview.src=imageData;
-   preview.style.display="block";
- };
- r.readAsDataURL(f);
-});
-document.getElementById("mic").onclick=()=>{
- const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){alert("Speech recognition is not supported in this browser.");return;}
- const rec=new SR();
- rec.lang="hi-IN";rec.interimResults=false;
- rec.onresult=e=>{q.value=e.results[0][0].transcript;q.focus();};
- rec.onerror=()=>status.textContent="Microphone error. Check browser permission.";
- rec.start();
-};
-document.getElementById("speak").onclick=()=>{
- if(!lastAnswer){alert("Ask a question first.");return;}
- speechSynthesis.cancel();
- const u=new SpeechSynthesisUtterance(lastAnswer);
- u.lang=/[\u0900-\u097F]/.test(lastAnswer)?"hi-IN":"en-IN";
- speechSynthesis.speak(u);
-};
-document.getElementById("form").addEventListener("submit",async e=>{
- e.preventDefault();
- const message=q.value.trim();
- if((!message&&!imageData)||send.disabled)return;
- const user=bubble(message||"Please explain this image.","user");
- if(imageData){
-   const im=document.createElement("img");
-   im.src=imageData;im.alt="Uploaded question";
-   user.appendChild(document.createElement("br"));user.appendChild(im);
- }
- q.value="";send.disabled=true;status.textContent="AI is thinking...";
- const wait=bubble("Thinking...","bot");
+
+function guestLogin(){
+ let name=document.getElementById("username").value.trim();
+ if(!name) name="Guest";
+ user=name;
+ localStorage.setItem("atul_user",user);
+ startApp();
+}
+
+function startApp(){
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ document.getElementById("account").textContent=user;
+ renderHistory();
+ newChat();
+}
+
+function logout(){
+ localStorage.removeItem("atul_user");
+ location.reload();
+}
+
+function newChat(){
+ currentChat=[];
+ document.getElementById("chat").innerHTML="";
+ showHome();
+ renderHistory();
+}
+
+function showHome(){
+ hidePages();
+ document.getElementById("home").classList.remove("hidden");
+}
+
+function showSettings(){
+ hidePages();
+ document.getElementById("settings").classList.remove("hidden");
+}
+
+function showHistory(){
+ hidePages();
+ document.getElementById("historyPage").classList.remove("hidden");
+ renderHistory();
+}
+
+function hidePages(){
+ ["home","settings","historyPage"].forEach(id=>
+ document.getElementById(id).classList.add("hidden"));
+}
+
+function addMessage(text,type){
+ let box=document.createElement("div");
+ box.className="msg "+type;
+ box.textContent=text;
+ document.getElementById("chat").appendChild(box);
+ document.getElementById("chat").scrollTop=999999;
+}
+
+async function sendMessage(){
+ let input=document.getElementById("message");
+ let text=input.value.trim();
+ if(!text)return;
+
+ input.value="";
+ addMessage(text,"user");
+ currentChat.push({role:"user",text});
+
+ let loading=document.createElement("div");
+ loading.className="msg";
+ loading.textContent="AtulProTalker is thinking...";
+ document.getElementById("chat").appendChild(loading);
+
  try{
-   if(API_URL.includes("YOUR-WORKER-NAME"))throw Error("Set your Worker URL in index.html first.");
-   const res=await fetch(API_URL,{
-     method:"POST",headers:{"Content-Type":"application/json"},
-     body:JSON.stringify({message,image:imageData,webSearch:document.getElementById("web").checked})
-   });
-   const data=await res.json();
-   if(!res.ok)throw Error(data.error||"Backend request failed");
-   wait.textContent=data.reply||"No answer received.";
-   lastAnswer=data.reply||"";
-   if(data.sources?.length){
-     const title=document.createElement("p");title.textContent="\nSources:";
-     wait.appendChild(title);
-     data.sources.forEach(s=>{
-       if(!s.url)return;
-       const a=document.createElement("a");
-       a.href=s.url;a.target="_blank";a.rel="noopener noreferrer";
-       a.textContent=s.title||s.url;a.style.color="#8dc5ff";
-       wait.appendChild(a);wait.appendChild(document.createElement("br"));
-     });
-   }
-   status.textContent="Ready";
-   imageData=null;file.value="";preview.src="";preview.style.display="none";
- }catch(err){
-   wait.textContent="Error: "+err.message;
-   status.textContent="Connection needs checking";
- }finally{send.disabled=false;q.focus();}
-});
+  if(API_URL==="YOUR_CLOUDFLARE_WORKER_URL")
+   throw new Error("Connect your Cloudflare Worker URL first.");
+
+  const response=await fetch(API_URL,{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({message:text})
+  });
+
+  if(!response.ok)throw new Error("Server error: "+response.status);
+
+  const data=await response.json();
+  const answer=data.reply || data.answer || data.response;
+
+  if(!answer)throw new Error("Unexpected server response.");
+
+  loading.textContent=answer;
+  currentChat.push({role:"assistant",text:answer});
+  chats.unshift({
+   title:text.slice(0,35),
+   messages:currentChat.slice()
+  });
+  save();
+  renderHistory();
+
+ }catch(error){
+  loading.textContent="Connection issue: "+error.message;
+ }
+}
+
+function renderHistory(){
+ let html="";
+ chats.forEach((chat,index)=>{
+  let btn=document.createElement("button");
+  btn.style.width="100%";
+  btn.style.margin="5px 0";
+  btn.textContent=chat.title;
+  btn.onclick=()=>openChat(index);
+  document.getElementById("history").appendChild(btn);
+ });
+ let list=document.getElementById("allHistory");
+ list.innerHTML="";
+ chats.forEach((chat,index)=>{
+  let btn=document.createElement("button");
+  btn.style.margin="5px";
+  btn.textContent=chat.title;
+  btn.onclick=()=>openChat(index);
+  list.appendChild(btn);
+ });
+}
+
+function openChat(index){
+ currentChat=chats[index].messages.slice();
+ document.getElementById("chat").innerHTML="";
+ currentChat.forEach(m=>addMessage(m.text,m.role==="user"?"user":""));
+ showHome();
+}
+
+function clearHistory(){
+ if(confirm("Delete all saved chat history?")){
+  chats=[];
+  save();
+  renderHistory();
+  newChat();
+ }
+}
+
+function toggleTheme(){
+ document.body.style.background=
+ document.body.style.background==="#090d1b"?"#eeeeee":"#090d1b";
+ document.body.style.color=
+ document.body.style.color==="white"?"#111":"white";
+}
+
+if(user)startApp();
 </script>
 </body>
 </html>
